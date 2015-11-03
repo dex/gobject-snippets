@@ -51,7 +51,24 @@ G_BEGIN_DECLS
 
 typedef struct _$ObjectType $ObjectType;
 typedef struct _$ObjectTypeClass $ObjectTypeClass;
-typedef struct _$ObjectTypePriv $ObjectTypePriv;
+typedef struct _$ObjectTypePrivate $ObjectTypePrivate;
+
+GType $fct_prefix_get_type (void) G_GNUC_CONST;
+
+#define $TYPE_MACRO ($fct_prefix_get_type ())
+#define $UPPER_CASE_NAME(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), $TYPE_MACRO, $ObjectType))
+#define $UPPER_CASE_NAME_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass), $TYPE_MACRO, $ObjectTypeClass))
+#define $IS_MACRO(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), $TYPE_MACRO))
+#define $IS_MACRO_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), $TYPE_MACRO))
+#define $UPPER_CASE_NAME_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), $TYPE_MACRO, $ObjectTypeClass))
+
+/**
+ * $ObjectTypeClass:
+ *
+ * The class of a #$ObjectType.
+ *
+ * Since: UNRELEASED
+ */
 
 struct _$ObjectTypeClass
 {
@@ -59,36 +76,19 @@ struct _$ObjectTypeClass
   GObjectClass parent_class;
 };
 
+/**
+ * $ObjectType:
+ *
+ * Data structure representing a #$ObjectType.
+ *
+ * Since: UNRELEASED
+ */
 struct _$ObjectType
 {
   /*<private>*/
   GObject parent;
-  $ObjectTypePriv *priv;
+  $ObjectTypePrivate *priv;
 };
-
-GType $fct_prefix_get_type (void) G_GNUC_CONST;
-
-/* TYPE MACROS */
-#define $TYPE_MACRO \\
-  ($fct_prefix_get_type ())
-#define $UPPER_CASE_NAME(obj) \\
-  (G_TYPE_CHECK_INSTANCE_CAST((obj), \\
-    $TYPE_MACRO, \\
-    $ObjectType))
-#define $UPPER_CASE_NAME_CLASS(klass) \\
-  (G_TYPE_CHECK_CLASS_CAST((klass), \\
-    $TYPE_MACRO, \\
-    $ObjectTypeClass))
-#define $IS_MACRO(obj) \\
-  (G_TYPE_CHECK_INSTANCE_TYPE((obj), \\
-    $TYPE_MACRO))
-#define $IS_MACRO_CLASS(klass) \\
-  (G_TYPE_CHECK_CLASS_TYPE((klass), \\
-    $TYPE_MACRO))
-#define $UPPER_CASE_NAME_GET_CLASS(obj) \\
-  (G_TYPE_INSTANCE_GET_CLASS ((obj), \\
-    $TYPE_MACRO, \\
-    $ObjectTypeClass))
 
 $ObjectType * $fct_prefix_new (void);
 
@@ -100,12 +100,23 @@ snip.rv = magic_replace(snip, path, result)
 `
 endsnippet
 
+snippet signals "Start implementing GSiganls in the new object" !b
+enum
+{
+  SIGNAL_${1:SIGNAL_NAME},
+	SIGNAL_LAST
+};
+
+static guint signals[SIGNAL_LAST];
+endsnippet
 
 snippet gobject "GObject Code" !b
 `!p
 
 result = '''
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #include "$header-file"
 
@@ -117,43 +128,49 @@ result = '''
  * TODO
  */
 
-/**
- * $ObjectType:
- *
- * Data structure representing a #$ObjectType.
- *
- * Since: UNRELEASED
- */
 
-/**
- * $ObjectTypeClass:
- *
- * The class of a #$ObjectType.
- *
- * Since: UNRELEASED
- */
-
+#define parent_class $fct_prefix_parent_class
 G_DEFINE_TYPE ($ObjectType, $fct_prefix, G_TYPE_OBJECT)
 
-enum
-{
-  PROP_FIRST_PROP = 1,
-  N_PROPS
-};
-
-/*
-enum
-{
-  LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL];
-*/
-
-struct _$ObjectTypePriv
+struct _$ObjectTypePrivate
 {
   gpointer badger;
 };
+
+static void
+$fct_prefix_class_init ($ObjectTypeClass *klass)
+{
+  g_type_class_add_private (klass, sizeof ($ObjectTypePrivate));
+}
+
+static void
+$fct_prefix_init ($ObjectType *self)
+{
+  self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self,
+      $TYPE_MACRO, $ObjectTypePrivate);
+}
+
+$ObjectType *
+$fct_prefix_new (void)
+{
+  return g_object_new ($TYPE_MACRO, NULL);
+}'''
+
+snip.rv = magic_replace(snip, path, result)
+`
+endsnippet
+
+snippet properties "Start adding GObject Properties" !b
+`!p
+
+result = '''
+enum
+{
+  PROP_NAME,
+	PROP_LAST
+};
+
+static GParamSpec *param_specs[PROP_LAST] = { NULL, };
 
 static void
 $fct_prefix_get_property (GObject *object,
@@ -161,7 +178,7 @@ $fct_prefix_get_property (GObject *object,
     GValue *value,
     GParamSpec *pspec)
 {
-  //$ObjectType *self = $UPPER_CASE_NAME (object);
+  $ObjectType *self = $UPPER_CASE_NAME (object);
 
   switch (property_id)
     {
@@ -177,7 +194,7 @@ $fct_prefix_set_property (GObject *object,
     const GValue *value,
     GParamSpec *pspec)
 {
-  //$ObjectType *self = $UPPER_CASE_NAME (object);
+  $ObjectType *self = $UPPER_CASE_NAME (object);
 
   switch (property_id)
     {
@@ -186,66 +203,67 @@ $fct_prefix_set_property (GObject *object,
         break;
     }
 }
+/* Needs to be added to class_init */
+	GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
+	oclass->get_property = $fct_prefix_get_property;
+	oclass->set_property = $fct_prefix_set_property;
+
+	g_object_class_install_properties (oclass, PROP_LAST, param_specs);'''
+
+snip.rv = magic_replace(snip, path, result)
+`
+endsnippet
+
+snippet constructed "Add a ->constructed vmethod implementation" !b
+`!p
+
+result = '''
 static void
 $fct_prefix_constructed (GObject *object)
 {
-  //$ObjectType *self = $UPPER_CASE_NAME (object);
-  void (*chain_up) (GObject *) =
-      ((GObjectClass *) $fct_prefix_parent_class)->constructed;
+  $ObjectType *self = $UPPER_CASE_NAME (object);
 
-  chain_up (object);
+  ((GObjectClass *) parent_class)->constructed(object);
 }
+/* Needs to be added to class_init */
+oclass->constructed = $fct_prefix_constructed;'''
 
+snip.rv = magic_replace(snip, path, result)
+`
+endsnippet
+
+snippet dispose "Add a ->constructed vmethod implementation" !b
+`!p
+
+result = '''
 static void
 $fct_prefix_dispose (GObject *object)
 {
-  //$ObjectType *self = $UPPER_CASE_NAME (object);
-  void (*chain_up) (GObject *) =
-      ((GObjectClass *) $fct_prefix_parent_class)->dispose;
+  $ObjectType *self = $UPPER_CASE_NAME (object);
 
-  chain_up (object);
+  ((GObjectClass *) parent_class)->dispose(object);
 }
+/* Needs to be added to class_init */
+oclass->dispose = $fct_prefix_dispose;'''
 
+snip.rv = magic_replace(snip, path, result)
+`
+endsnippet
+
+snippet finalize "Add a ->constructed vmethod implementation" !b
+`!p
+
+result = '''
 static void
 $fct_prefix_finalize (GObject *object)
 {
-  //$ObjectType *self = $UPPER_CASE_NAME (object);
-  void (*chain_up) (GObject *) =
-      ((GObjectClass *) $fct_prefix_parent_class)->finalize;
+  $ObjectType *self = $UPPER_CASE_NAME (object);
 
-  chain_up (object);
+  ((GObjectClass *) parent_class)->finalize(object);
 }
-
-static void
-$fct_prefix_class_init (
-    $ObjectTypeClass *klass)
-{
-  GObjectClass *oclass = G_OBJECT_CLASS (klass);
-  //GParamSpec *spec;
-
-  oclass->get_property = $fct_prefix_get_property;
-  oclass->set_property = $fct_prefix_set_property;
-  oclass->constructed = $fct_prefix_constructed;
-  oclass->dispose = $fct_prefix_dispose;
-  oclass->finalize = $fct_prefix_finalize;
-
-  g_type_class_add_private (klass, sizeof ($ObjectTypePriv));
-}
-
-static void
-$fct_prefix_init ($ObjectType *self)
-{
-  self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self,
-      $TYPE_MACRO, $ObjectTypePriv);
-}
-
-$ObjectType *
-$fct_prefix_new (void)
-{
-  return g_object_new ($TYPE_MACRO,
-      NULL);
-}'''
+/* Needs to be added to class_init */
+oclass->finalize = $fct_prefix_finalize;'''
 
 snip.rv = magic_replace(snip, path, result)
 `

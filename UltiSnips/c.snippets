@@ -32,11 +32,10 @@ snippet prop "GObject property" !b
  *
  * Since: UNRELEASED
  */
-spec = g_param_spec_${3:type} ("$2", "$2",
-    "${4:description}",
-    ${5:default_value},
-    ${6:G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS});
-g_object_class_install_property (oclass, PROP_${7}, spec);
+param_specs[PROP_${3:NAME}] = g_param_spec_${4:type} ("$2", "$2",
+    "${5:description}",
+    ${6:default_value},
+    ${7:G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS});
 endsnippet
 
 snippet getter "Property getter helper" !b
@@ -63,7 +62,7 @@ snippet lgpl "LGPL license" !b
 snip.rv = '''/*
  * %s
  *
- * Copyright (C) 2014 Collabora Ltd. <http://www.collabora.co.uk/>
+ * Copyright (C) 2015 Thibault Saunier <tsaunier@gnome.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -108,9 +107,9 @@ g_signal_connect_object (${1:object}, "${2:signal}",
 endsnippet
 
 snippet itl "Iterate a GList" !b
-for (l = ${1:list}; l != NULL; l = g_list_next (l))
+for (tmp = ${1:list}; tmp; tmp = tmp->next)
   {
-    ${2:type} = l->data;
+    ${2:type} = tmp->data;
 
     ${3}
   }
